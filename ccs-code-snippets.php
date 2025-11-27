@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Code Snippets
  * Description: Create, edit, and assign PHP, CSS, and HTML snippets. Includes Safe Mode, Import/Export, GitHub Updater, Shortcodes, and Duplication.
- * Version: 0.0.12
+ * Version: 0.0.14
  * Author: Custom AI
  * Text Domain: ccs-snippets
  */
@@ -19,7 +19,7 @@ define( 'CCS_GITHUB_REPO', 'ccs-code-snippets' );
 define( 'CCS_ACCESS_TOKEN', '' ); 
 // -------------------------------------------------------------------------
 
-class CCS_Code_Snippets_012 {
+class CCS_Code_Snippets_014 {
 
     public function __construct() {
         // Init
@@ -180,7 +180,7 @@ class CCS_Code_Snippets_012 {
     public function render_code_editor( $post ) {
         $code = get_post_meta( $post->ID, '_ccs_code', true );
         echo '<textarea id="ccs_code_textarea" name="ccs_code" style="width:100%; min-height: 300px;">' . esc_textarea( $code ) . '</textarea>';
-        echo '<p class="description"><strong>PHP:</strong> You can use <code>&lt;?php</code> tags or skip them.</p>';
+        echo '<p class="description"><strong>PHP:</strong> You can use <code>&lt;?php</code> tags or skip them. If defining functions, wrap them in <code>if(!function_exists(\'name\')) { ... }</code>.</p>';
     }
 
     public function render_settings_box( $post ) {
@@ -203,7 +203,16 @@ class CCS_Code_Snippets_012 {
         foreach(['html'=>'HTML','css'=>'CSS','php'=>'PHP'] as $k=>$v) echo "<option value='$k' " . selected($type, $k, false) . ">$v</option>";
         echo '</select></p>';
 
-        $hooks = ['wp_head'=>'Header','wp_footer'=>'Footer','wp_body_open'=>'Body Open','the_content'=>'Content','init'=>'Init','wp_enqueue_scripts'=>'Enqueue'];
+        // UPDATED DROPDOWN LIST FOR V0.0.14
+        $hooks = [
+            'wp_head' => 'Header (wp_head)',
+            'wp_footer' => 'Footer (wp_footer)',
+            'wp_body_open' => 'Body Open (wp_body_open)',
+            'the_content' => 'Inside Content (the_content)',
+            'init' => 'Run Everywhere (functions.php style)', // Renamed for clarity
+            'wp_enqueue_scripts' => 'Enqueue Scripts/Styles'
+        ];
+
         echo '<p><label><strong>Target Hook:</strong></label><select id="ccs_hook_select" style="width:100%; margin-bottom: 5px;"><option value="">-- Select Common --</option>';
         foreach($hooks as $k=>$v) echo "<option value='$k' " . selected($hook, $k, false) . ">$v</option>";
         echo '</select><input type="text" name="ccs_hook" id="ccs_hook_input" value="' . esc_attr($hook) . '" style="width:100%" placeholder="Leave empty if using Shortcode only"></p>';
@@ -333,9 +342,10 @@ class CCS_Code_Snippets_012 {
     }
 }
 
-// Updater Class
+// Updater Class (Robust Version from v0.0.13)
 class CCS_GitHub_Updater {
     private $file, $user, $repo, $token, $slug, $basename;
+    
     public function __construct( $file, $user, $repo, $token = '' ) {
         $this->file = $file; $this->user = $user; $this->repo = $repo; $this->token = $token;
         $this->slug = 'ccs-code-snippets'; $this->basename = plugin_basename( $file );
@@ -343,16 +353,21 @@ class CCS_GitHub_Updater {
         add_filter( 'plugins_api', [ $this, 'check_info' ], 10, 3 );
         add_filter( 'upgrader_source_selection', [ $this, 'fix_folder_name' ], 10, 4 );
     }
+
     public function check_update( $transient ) {
         if ( empty( $transient->checked ) ) return $transient;
         $remote = $this->get_repository_info();
-        // UPDATED FIX: ltrim($tag, 'v.') removes both 'v' and '.' from start
-        if ( $remote && version_compare( get_plugin_data( $this->file )['Version'], ltrim($remote->tag_name, 'v.'), '<' ) ) {
-            $res = new stdClass(); $res->slug = $this->slug; $res->plugin = $this->basename; $res->new_version = $remote->tag_name; $res->package = $remote->zipball_url; $res->url = $remote->html_url;
-            $transient->response[ $this->basename ] = $res;
+        if ( $remote ) {
+            $local = get_plugin_data( $this->file )['Version'];
+            $remote_clean = preg_replace( '/[^0-9.]/', '', $remote->tag_name );
+            if ( version_compare( $local, $remote_clean, '<' ) ) {
+                $res = new stdClass(); $res->slug = $this->slug; $res->plugin = $this->basename; $res->new_version = $remote->tag_name; $res->package = $remote->zipball_url; $res->url = $remote->html_url;
+                $transient->response[ $this->basename ] = $res;
+            }
         }
         return $transient;
     }
+
     public function check_info( $false, $action, $arg ) {
         if ( 'plugin_information' !== $action || $arg->slug !== $this->slug ) return $false;
         $remote = $this->get_repository_info();
@@ -361,6 +376,7 @@ class CCS_GitHub_Updater {
         $res->sections = [ 'description' => 'Github Update', 'changelog' => $remote->body ];
         return $res;
     }
+
     private function get_repository_info() {
         $cache_key = 'ccs_gh_release_' . $this->repo;
         if ( $cached = get_transient( $cache_key ) ) return $cached;
@@ -372,15 +388,33 @@ class CCS_GitHub_Updater {
         set_transient( $cache_key, $body, 43200 );
         return $body;
     }
+
     public function fix_folder_name( $source, $remote_source, $upgrader, $hook_extra = null ) {
         global $wp_filesystem;
-        if ( isset( $hook_extra['plugin'] ) && $hook_extra['plugin'] === $this->basename ) {
-            $correct_source = trailingslashit( $remote_source ) . $this->slug;
-            $wp_filesystem->move( $source, $correct_source );
-            return $correct_source;
+        if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->basename ) return $source;
+        
+        $target_file = 'ccs-code-snippets.php';
+        $found_source = $source; 
+
+        if ( ! $wp_filesystem->exists( trailingslashit( $source ) . $target_file ) ) {
+            $files = $wp_filesystem->dirlist( $source );
+            if ( $files ) {
+                foreach ( $files as $file ) {
+                    if ( $file['type'] === 'd' ) {
+                        $subdir = trailingslashit( $source ) . $file['name'];
+                        if ( $wp_filesystem->exists( trailingslashit( $subdir ) . $target_file ) ) {
+                            $found_source = $subdir;
+                            break;
+                        }
+                    }
+                }
+            }
         }
-        return $source;
+        $destination_path = trailingslashit( $remote_source ) . $this->slug;
+        if ( $wp_filesystem->exists( $destination_path ) ) $wp_filesystem->delete( $destination_path, true );
+        if ( $wp_filesystem->move( $found_source, $destination_path ) ) return trailingslashit( $destination_path );
+        return trailingslashit( $found_source );
     }
 }
 
-new CCS_Code_Snippets_012();
+new CCS_Code_Snippets_014();
