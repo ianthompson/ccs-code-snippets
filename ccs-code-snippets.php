@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Code Snippets
  * Description: Create, edit, and assign PHP, CSS, and HTML snippets. Includes Safe Mode, Import/Export, GitHub Updater, Shortcodes, and Duplication.
- * Version: 0.0.14
+ * Version: 0.0.15
  * Author: Custom AI
  * Text Domain: ccs-snippets
  */
@@ -19,7 +19,7 @@ define( 'CCS_GITHUB_REPO', 'ccs-code-snippets' );
 define( 'CCS_ACCESS_TOKEN', '' ); 
 // -------------------------------------------------------------------------
 
-class CCS_Code_Snippets_014 {
+class CCS_Code_Snippets_015 {
 
     public function __construct() {
         // Init
@@ -89,6 +89,21 @@ class CCS_Code_Snippets_014 {
     }
 
     // --- EXECUTION & SHORTCODE ---
+    
+    /**
+     * Helper to process PHP code safely, adding tags if missing
+     */
+    private function prepare_php_code( $code ) {
+        $trimmed = trim( $code );
+        if ( empty( $trimmed ) ) return '';
+        
+        // If it doesn't start with <?php or <?, prepend it
+        if ( stripos( $trimmed, '<?php' ) !== 0 && stripos( $trimmed, '<?' ) !== 0 ) {
+            return "<?php\n" . $code;
+        }
+        return $code;
+    }
+
     public function render_shortcode( $atts ) {
         $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'ccs_snippet' );
         $post_id = intval( $atts['id'] );
@@ -107,6 +122,8 @@ class CCS_Code_Snippets_014 {
         if ( 'css' === $type ) echo '<style>' . $code . '</style>';
         elseif ( 'html' === $type ) echo $code;
         elseif ( 'php' === $type ) {
+            // Apply Smart PHP Tag
+            $code = $this->prepare_php_code( $code );
             try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
                 if ( current_user_can( 'manage_options' ) ) echo 'Error: ' . $e->getMessage();
             }
@@ -136,6 +153,8 @@ class CCS_Code_Snippets_014 {
                 if ( 'css' === $type ) echo '<style>' . $code . '</style>';
                 elseif ( 'html' === $type ) echo $code;
                 elseif ( 'php' === $type ) {
+                    // Apply Smart PHP Tag
+                    $code = $this->prepare_php_code( $code );
                     try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
                         if ( current_user_can( 'manage_options' ) ) echo 'Snippet Error: ' . esc_html( $e->getMessage() );
                     }
@@ -180,7 +199,7 @@ class CCS_Code_Snippets_014 {
     public function render_code_editor( $post ) {
         $code = get_post_meta( $post->ID, '_ccs_code', true );
         echo '<textarea id="ccs_code_textarea" name="ccs_code" style="width:100%; min-height: 300px;">' . esc_textarea( $code ) . '</textarea>';
-        echo '<p class="description"><strong>PHP:</strong> You can use <code>&lt;?php</code> tags or skip them. If defining functions, wrap them in <code>if(!function_exists(\'name\')) { ... }</code>.</p>';
+        echo '<p class="description"><strong>PHP:</strong> Opening <code>&lt;?php</code> tags are added automatically if you skip them.</p>';
     }
 
     public function render_settings_box( $post ) {
@@ -203,13 +222,12 @@ class CCS_Code_Snippets_014 {
         foreach(['html'=>'HTML','css'=>'CSS','php'=>'PHP'] as $k=>$v) echo "<option value='$k' " . selected($type, $k, false) . ">$v</option>";
         echo '</select></p>';
 
-        // UPDATED DROPDOWN LIST FOR V0.0.14
         $hooks = [
             'wp_head' => 'Header (wp_head)',
             'wp_footer' => 'Footer (wp_footer)',
             'wp_body_open' => 'Body Open (wp_body_open)',
             'the_content' => 'Inside Content (the_content)',
-            'init' => 'Run Everywhere (functions.php style)', // Renamed for clarity
+            'init' => 'Run Everywhere (functions.php style)',
             'wp_enqueue_scripts' => 'Enqueue Scripts/Styles'
         ];
 
@@ -342,7 +360,7 @@ class CCS_Code_Snippets_014 {
     }
 }
 
-// Updater Class (Robust Version from v0.0.13)
+// Updater Class
 class CCS_GitHub_Updater {
     private $file, $user, $repo, $token, $slug, $basename;
     
@@ -417,4 +435,4 @@ class CCS_GitHub_Updater {
     }
 }
 
-new CCS_Code_Snippets_014();
+new CCS_Code_Snippets_015();
