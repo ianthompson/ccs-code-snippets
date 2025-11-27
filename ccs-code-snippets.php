@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 // -------------------------------------------------------------------------
 // CONFIGURATION: EDIT THIS TO MATCH YOUR GITHUB REPO
 // -------------------------------------------------------------------------
-define( 'CCS_GITHUB_USER', 'YOUR_GITHUB_USERNAME' ); // e.g. 'johndoe'
-define( 'CCS_GITHUB_REPO', 'YOUR_REPO_NAME' );      // e.g. 'ccs-code-snippets'
+define( 'CCS_GITHUB_USER', 'ianthompson' ); // e.g. 'johndoe'
+define( 'CCS_GITHUB_REPO', 'css-code-snippets' );      // e.g. 'ccs-code-snippets'
 define( 'CCS_ACCESS_TOKEN', '' );                   // Leave empty for Public repos. Fill for Private.
 // -------------------------------------------------------------------------
 
