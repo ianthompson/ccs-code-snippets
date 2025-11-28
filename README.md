@@ -2,7 +2,7 @@
 
 A lightweight, professional WordPress plugin that allows you to add PHP, CSS, and HTML snippets to your website. It features a native code editor, AJAX toggles, GitHub auto-updates, and crash protection. 
 
-This is a personal project that I created using Googles AI Studio.
+This is a personal project that I created using Google's AI Studio.
 
 ## 🚀 Features
 
