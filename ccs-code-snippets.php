@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Code Snippets
  * Description: Create, edit, and assign PHP, CSS, and HTML snippets. Includes Safe Mode, Import/Export, GitHub Updater, Shortcodes, and Duplication.
- * Version: 0.0.15
+ * Version: 0.0.16
  * Author: Custom AI
  * Text Domain: ccs-snippets
  */
@@ -19,10 +19,10 @@ define( 'CCS_GITHUB_REPO', 'ccs-code-snippets' );
 define( 'CCS_ACCESS_TOKEN', '' ); 
 // -------------------------------------------------------------------------
 
-class CCS_Code_Snippets_015 {
+class CCS_Code_Snippets_016 {
 
     public function __construct() {
-        // Init
+        // Init (Post Types must still be registered at init)
         add_action( 'init', [ $this, 'register_content_types' ] );
         
         // Admin UI
@@ -45,14 +45,114 @@ class CCS_Code_Snippets_015 {
         add_action( 'admin_menu', [ $this, 'register_tools_page' ] );
         add_action( 'admin_init', [ $this, 'handle_export_import' ] );
 
-        // Execution
-        add_action( 'init', [ $this, 'execute_snippets' ], 99 );
+        // EXECUTION ENGINE - Moved to 'plugins_loaded' (The Earliest Hook)
+        // This ensures snippets with Priority 1-99 on 'init' will work correctly.
+        add_action( 'plugins_loaded', [ $this, 'execute_snippets' ], 1 );
         
         // Shortcode
         add_shortcode( 'ccs_snippet', [ $this, 'render_shortcode' ] );
 
         // Updater
         new CCS_GitHub_Updater( __FILE__, CCS_GITHUB_USER, CCS_GITHUB_REPO, CCS_ACCESS_TOKEN );
+    }
+
+    // --- EXECUTION ENGINE (UPDATED) ---
+    public function execute_snippets() {
+        // Safe Mode Check
+        if ( isset( $_GET['ccs_safe_mode'] ) && '1' === $_GET['ccs_safe_mode'] ) {
+            if ( current_user_can( 'manage_options' ) ) add_action( 'wp_footer', function() { echo '<div style="position:fixed;bottom:10px;right:10px;background:red;color:white;padding:10px;">Safe Mode</div>'; } );
+            return;
+        }
+
+        // We use direct DB query because 'get_posts' relies on CPTs which aren't registered at 'plugins_loaded' yet.
+        global $wpdb;
+        $sql = "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'ccs_snippet' AND post_status = 'publish'";
+        $snippet_ids = $wpdb->get_col( $sql );
+
+        if ( ! $snippet_ids ) return;
+
+        foreach ( $snippet_ids as $id ) {
+            // Check Active Status
+            $active = get_post_meta( $id, '_ccs_active', true );
+            if ( $active === '' ) $active = 1;
+            if ( ! $active ) continue;
+
+            $type = get_post_meta( $id, '_ccs_type', true );
+            $hook = get_post_meta( $id, '_ccs_hook', true );
+            $prio = get_post_meta( $id, '_ccs_priority', true ) ?: 10;
+            $code = get_post_meta( $id, '_ccs_code', true );
+
+            if ( empty( $code ) || empty( $hook ) ) continue;
+
+            // Logic Wrapper
+            $logic = function() use ( $code, $type ) {
+                if ( 'css' === $type ) echo '<style>' . $code . '</style>';
+                elseif ( 'html' === $type ) echo $code;
+                elseif ( 'php' === $type ) {
+                    $code = $this->prepare_php_code( $code );
+                    try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
+                        if ( current_user_can( 'manage_options' ) ) echo 'Snippet Error: ' . esc_html( $e->getMessage() );
+                    }
+                }
+            };
+
+            // Execute
+            // If the user hook is 'plugins_loaded', run immediately to avoid loop issues
+            if ( $hook === 'plugins_loaded' ) {
+                 $logic();
+            } else {
+                 add_action( $hook, $logic, $prio );
+            }
+        }
+    }
+
+    private function prepare_php_code( $code ) {
+        $trimmed = trim( $code );
+        if ( empty( $trimmed ) ) return '';
+        if ( stripos( $trimmed, '<?php' ) !== 0 && stripos( $trimmed, '<?' ) !== 0 ) {
+            return "<?php\n" . $code;
+        }
+        return $code;
+    }
+
+    // --- SHORTCODE ---
+    public function render_shortcode( $atts ) {
+        $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'ccs_snippet' );
+        $post_id = intval( $atts['id'] );
+        if ( ! $post_id || 'ccs_snippet' !== get_post_type( $post_id ) ) return '';
+        
+        $active = get_post_meta( $post_id, '_ccs_active', true );
+        if ( $active === '' ) $active = 1;
+        if ( ! $active ) return ''; 
+
+        if ( isset( $_GET['ccs_safe_mode'] ) && '1' === $_GET['ccs_safe_mode'] ) return '';
+
+        $code = get_post_meta( $post_id, '_ccs_code', true );
+        $type = get_post_meta( $post_id, '_ccs_type', true );
+
+        ob_start();
+        if ( 'css' === $type ) echo '<style>' . $code . '</style>';
+        elseif ( 'html' === $type ) echo $code;
+        elseif ( 'php' === $type ) {
+            $code = $this->prepare_php_code( $code );
+            try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
+                if ( current_user_can( 'manage_options' ) ) echo 'Error: ' . $e->getMessage();
+            }
+        }
+        return ob_get_clean();
+    }
+
+    // --- SETUP ---
+    public function register_content_types() {
+        register_post_type( 'ccs_snippet', [
+            'labels' => [ 'name' => 'Snippets', 'singular_name' => 'Snippet', 'menu_name' => 'Code Snippets' ],
+            'public' => false, 'show_ui' => true, 'show_in_menu' => true,
+            'menu_icon' => 'dashicons-editor-code', 'supports' => [ 'title' ]
+        ]);
+        register_taxonomy( 'ccs_tags', [ 'ccs_snippet' ], [
+            'hierarchical' => false, 'labels' => [ 'name' => 'Tags' ],
+            'show_ui' => true, 'show_admin_column' => true
+        ]);
     }
 
     // --- DUPLICATION ---
@@ -88,94 +188,7 @@ class CCS_Code_Snippets_015 {
         }
     }
 
-    // --- EXECUTION & SHORTCODE ---
-    
-    /**
-     * Helper to process PHP code safely, adding tags if missing
-     */
-    private function prepare_php_code( $code ) {
-        $trimmed = trim( $code );
-        if ( empty( $trimmed ) ) return '';
-        
-        // If it doesn't start with <?php or <?, prepend it
-        if ( stripos( $trimmed, '<?php' ) !== 0 && stripos( $trimmed, '<?' ) !== 0 ) {
-            return "<?php\n" . $code;
-        }
-        return $code;
-    }
-
-    public function render_shortcode( $atts ) {
-        $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'ccs_snippet' );
-        $post_id = intval( $atts['id'] );
-        if ( ! $post_id || 'ccs_snippet' !== get_post_type( $post_id ) ) return '';
-        
-        $active = get_post_meta( $post_id, '_ccs_active', true );
-        if ( $active === '' ) $active = 1;
-        if ( ! $active ) return ''; 
-
-        if ( isset( $_GET['ccs_safe_mode'] ) && '1' === $_GET['ccs_safe_mode'] ) return '';
-
-        $code = get_post_meta( $post_id, '_ccs_code', true );
-        $type = get_post_meta( $post_id, '_ccs_type', true );
-
-        ob_start();
-        if ( 'css' === $type ) echo '<style>' . $code . '</style>';
-        elseif ( 'html' === $type ) echo $code;
-        elseif ( 'php' === $type ) {
-            // Apply Smart PHP Tag
-            $code = $this->prepare_php_code( $code );
-            try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
-                if ( current_user_can( 'manage_options' ) ) echo 'Error: ' . $e->getMessage();
-            }
-        }
-        return ob_get_clean();
-    }
-
-    public function execute_snippets() {
-        if ( isset( $_GET['ccs_safe_mode'] ) && '1' === $_GET['ccs_safe_mode'] ) {
-            if ( current_user_can( 'manage_options' ) ) add_action( 'wp_footer', function() { echo '<div style="position:fixed;bottom:10px;right:10px;background:red;color:white;padding:10px;">Safe Mode</div>'; } );
-            return;
-        }
-        $snippets = get_posts( [ 'post_type' => 'ccs_snippet', 'post_status' => 'publish', 'posts_per_page' => -1 ] );
-        foreach ( $snippets as $snippet ) {
-            $active = get_post_meta( $snippet->ID, '_ccs_active', true );
-            if ( $active === '' ) $active = 1;
-            if ( ! $active ) continue;
-
-            $type = get_post_meta( $snippet->ID, '_ccs_type', true );
-            $hook = get_post_meta( $snippet->ID, '_ccs_hook', true );
-            $prio = get_post_meta( $snippet->ID, '_ccs_priority', true ) ?: 10;
-            $code = get_post_meta( $snippet->ID, '_ccs_code', true );
-
-            if ( empty( $code ) || empty( $hook ) ) continue;
-
-            add_action( $hook, function() use ( $code, $type ) {
-                if ( 'css' === $type ) echo '<style>' . $code . '</style>';
-                elseif ( 'html' === $type ) echo $code;
-                elseif ( 'php' === $type ) {
-                    // Apply Smart PHP Tag
-                    $code = $this->prepare_php_code( $code );
-                    try { eval( '?>' . $code ); } catch ( \Throwable $e ) {
-                        if ( current_user_can( 'manage_options' ) ) echo 'Snippet Error: ' . esc_html( $e->getMessage() );
-                    }
-                }
-            }, $prio );
-        }
-    }
-
-    // --- SETUP ---
-    public function register_content_types() {
-        register_post_type( 'ccs_snippet', [
-            'labels' => [ 'name' => 'Snippets', 'singular_name' => 'Snippet', 'menu_name' => 'Code Snippets' ],
-            'public' => false, 'show_ui' => true, 'show_in_menu' => true,
-            'menu_icon' => 'dashicons-editor-code', 'supports' => [ 'title' ]
-        ]);
-        register_taxonomy( 'ccs_tags', [ 'ccs_snippet' ], [
-            'hierarchical' => false, 'labels' => [ 'name' => 'Tags' ],
-            'show_ui' => true, 'show_admin_column' => true
-        ]);
-    }
-
+    // --- UI & TOOLS ---
     public function set_custom_columns( $c ) {
         return [ 'cb' => $c['cb'], 'ccs_active' => 'Status', 'title' => $c['title'], 'ccs_shortcode' => 'Shortcode', 'ccs_type' => 'Type', 'ccs_hook' => 'Hook', 'ccs_priority' => 'Prio', 'taxonomy-ccs_tags' => 'Tags' ];
     }
@@ -360,7 +373,7 @@ class CCS_Code_Snippets_015 {
     }
 }
 
-// Updater Class
+// Updater Class (Robust Version from v0.0.13)
 class CCS_GitHub_Updater {
     private $file, $user, $repo, $token, $slug, $basename;
     
@@ -435,4 +448,4 @@ class CCS_GitHub_Updater {
     }
 }
 
-new CCS_Code_Snippets_015();
+new CCS_Code_Snippets_016();
