@@ -64,6 +64,30 @@ If a PHP snippet contains an error (e.g., an infinite loop) and you cannot acces
 
 ## 📋 Changelog
 
+**v0.1.1**
+*   **Major Refactor:** Split monolithic plugin file into modular architecture with separate classes
+*   **Security Enhancements:**
+    *   Added comprehensive input sanitization and output escaping
+    *   Improved capability checks (manage_options required for all snippet operations)
+    *   Enhanced XSS protection with wp_kses_post() for HTML snippets
+    *   Better validation of file uploads and imports
+    *   Added error logging instead of exposing errors to users
+*   **Code Quality:**
+    *   Added PHPDoc comments throughout the entire codebase
+    *   Implemented proper input validation with error handling
+    *   Organized code into separate classes: CCS_Snippet_Executor, CCS_Admin_UI, CCS_Tools_Page, CCS_Post_Types, CCS_GitHub_Updater
+    *   Added caching for active snippets to improve performance
+    *   Improved import validation and error reporting
+*   **New Features:**
+    *   Component-based architecture allows for easier extension
+    *   Added cache clearing functionality
+    *   Improved Safe Mode banner visibility
+    *   Better error messages with snippet ID in logs
+*   **Developer Experience:**
+    *   Cleaner, more maintainable codebase
+    *   Better separation of concerns
+    *   Improved file organization (includes/core and includes/admin directories)
+
 **v0.0.16**
 *   **Core Update:** Moved execution engine to `plugins_loaded` priority 1. This fixes race conditions where snippets with standard priority (10) failed to fire.
 *   **Improvement:** Switched to direct DB queries for snippet retrieval to support early loading.
