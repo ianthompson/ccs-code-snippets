@@ -530,10 +530,6 @@ class CCS_Admin_UI {
                 // Enable line wrapping
                 'lineWrapping'     => true,
 
-                // Show lint warnings/errors
-                'gutters'          => [ 'CodeMirror-lint-markers' ],
-                'lint'             => true,
-
                 // Enable autocomplete
                 'extraKeys'        => [
                     'Ctrl-Space' => 'autocomplete',
@@ -564,7 +560,7 @@ class CCS_Admin_UI {
 
                     if ( editor ) {
                         // Add help text for keyboard shortcuts
-                        $("<p class=\"description\" style=\"margin-top:10px;\"><strong>Tips:</strong> Press <kbd>Ctrl+Space</kbd> for autocomplete, <kbd>Ctrl+/</kbd> to toggle comments. Editor shows warnings in the left gutter.</p>").insertAfter("#ccs_code_textarea");
+                        $("<p class=\"description\" style=\"margin-top:10px;\"><strong>Tips:</strong> Press <kbd>Ctrl+Space</kbd> for autocomplete, <kbd>Ctrl+/</kbd> to toggle comments. Drag the bottom edge to resize.</p>").insertAfter("#ccs_code_textarea");
                     }
                 } );',
                 wp_json_encode( $settings )
