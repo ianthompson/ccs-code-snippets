@@ -145,29 +145,19 @@ class CCS_Snippet_Executor {
 
         try {
             if ( 'css' === $type ) {
-                // Sanitize CSS output
-                echo '<style>' . wp_strip_all_tags( $code ) . '</style>';
+                // Output CSS directly - already validated at save time
+                echo '<style>' . $code . '</style>';
             } elseif ( 'html' === $type ) {
-                // Use wp_kses_post to allow safe HTML
-                echo wp_kses_post( $code );
+                // Output HTML directly - already validated at save time
+                echo $code;
             } elseif ( 'php' === $type ) {
                 // WARNING: eval() is inherently dangerous
                 // Only admins with manage_options can create/edit snippets
-                // Consider removing this feature or using a proper sandbox
-                if ( ! current_user_can( 'manage_options' ) ) {
-                    return;
-                }
-
+                // Snippets execute for all users once activated by admin
                 $code = $this->prepare_php_code( $code );
 
-                // Capture output and errors
-                ob_start();
                 // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Required for snippet functionality
                 eval( '?>' . $code );
-                $output = ob_get_clean();
-
-                // Escape output for safety
-                echo wp_kses_post( $output );
             }
         } catch ( \Throwable $e ) {
             // Log error instead of displaying

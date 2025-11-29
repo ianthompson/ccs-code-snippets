@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Code Snippets
  * Description: Create, edit, and assign PHP, CSS, and HTML snippets. Includes Safe Mode, Import/Export, GitHub Updater, Shortcodes, and Duplication.
- * Version: 0.1.1
+ * Version: 0.1.2
  * Author: Custom AI
  * Text Domain: ccs-snippets
  * Requires at least: 5.0
@@ -47,7 +47,7 @@ class CCS_Code_Snippets {
      *
      * @var string
      */
-    const VERSION = '0.1.1';
+    const VERSION = '0.1.2';
 
     /**
      * Plugin instance.

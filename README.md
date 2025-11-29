@@ -64,6 +64,13 @@ If a PHP snippet contains an error (e.g., an infinite loop) and you cannot acces
 
 ## 📋 Changelog
 
+**v0.1.2**
+*   **Critical Bugfix:** Fixed snippets not executing on frontend
+    *   Removed overly aggressive output filtering that was stripping CSS/HTML content
+    *   Removed admin-only check for PHP snippets (snippets now execute for all users once activated by admin)
+    *   PHP snippet output no longer filtered (was breaking JavaScript and other code)
+*   **Note:** Security is maintained by requiring `manage_options` permission to create/edit snippets
+
 **v0.1.1**
 *   **Major Refactor:** Split monolithic plugin file into modular architecture with separate classes
 *   **Security Enhancements:**
