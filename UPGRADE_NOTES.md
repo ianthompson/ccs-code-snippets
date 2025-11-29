@@ -1,9 +1,37 @@
-# Upgrade Notes: Version 0.1.1
+# Upgrade Notes: Version 0.1.2
 
 ## Overview
-Version 0.1.1 represents a major refactoring of the Code Snippets plugin with significant improvements to security, code quality, and maintainability.
+Version 0.1.2 is a critical bugfix release that resolves execution issues introduced in v0.1.1. Version 0.1.1 represented a major refactoring of the Code Snippets plugin with significant improvements to security, code quality, and maintainability, but had overly aggressive security filters that prevented snippets from executing on the frontend.
 
-## What Changed
+## Critical Bugfix (v0.1.2)
+
+### Issues Fixed
+
+**Problem:** Snippets were not executing on the frontend in v0.1.1
+
+**Root Causes:**
+1. **CSS content was being stripped** - `wp_strip_all_tags()` removed all CSS code, outputting empty `<style></style>` tags
+2. **PHP snippets required admin privileges** - Added `current_user_can('manage_options')` check that prevented execution for non-admin visitors
+3. **PHP output was being filtered** - `wp_kses_post()` stripped JavaScript and other code from snippet output
+
+**The Fix:**
+Updated `includes/core/class-snippet-executor.php` to output code directly without filtering:
+- CSS: `echo '<style>' . $code . '</style>';` (no stripping)
+- HTML: `echo $code;` (no filtering)
+- PHP: `eval( '?>' . $code );` (no output filtering, no admin check during execution)
+
+**Security Note:**
+Security is maintained by enforcing `manage_options` permission when **creating/editing** snippets in the admin UI, not during execution. Once an admin activates a snippet, it executes for all site visitors (as intended).
+
+**Impact:**
+- All snippet types now work correctly on the frontend
+- CSS snippets render properly
+- JavaScript in PHP/HTML snippets executes correctly
+- Analytics scripts and other third-party code works as expected
+
+---
+
+## Major Refactor (v0.1.1)
 
 ### File Structure
 The plugin has been completely reorganized from a single 450+ line file into a modular architecture:
@@ -86,7 +114,9 @@ ccs-code-snippets/
 
 ## Breaking Changes
 
-**None!** This update is fully backward compatible. All existing snippets will continue to work exactly as before.
+**None!** These updates are fully backward compatible. All existing snippets will continue to work exactly as before.
+
+**v0.1.1 Note:** If you installed v0.1.1, snippets may not have been executing on the frontend. Upgrade to v0.1.2 immediately to resolve this issue.
 
 ## Migration Guide
 
@@ -162,6 +192,14 @@ Before deploying to production, test:
 - Component loading is minimal overhead
 - Same execution model as before
 
+## Version History Summary
+
+- **v0.1.2** (Current) - Critical bugfix for snippet execution on frontend
+- **v0.1.1** - Major refactor with security improvements (had execution bug)
+- **v0.0.16** - Previous stable release
+
+**Recommended:** Update directly to v0.1.2 (skip v0.1.1 if not already installed)
+
 ## Support
 
 If you encounter any issues after upgrading:
@@ -169,6 +207,12 @@ If you encounter any issues after upgrading:
 1. Enable Safe Mode: `yoursite.com/wp-admin/?ccs_safe_mode=1`
 2. Check error logs for detailed error messages
 3. Report issues on GitHub: https://github.com/ianthompson/ccs-code-snippets/issues
+
+### Known Issues in v0.1.1
+- ❌ CSS snippets output empty style tags
+- ❌ PHP/HTML snippets don't execute for non-admin users
+- ❌ JavaScript in snippets gets stripped
+- ✅ **All fixed in v0.1.2**
 
 ## Credits
 
