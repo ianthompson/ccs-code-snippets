@@ -64,6 +64,19 @@ If a PHP snippet contains an error (e.g., an infinite loop) and you cannot acces
 
 ## 📋 Changelog
 
+**v0.1.3**
+*   **New Features:**
+    *   CSS snippets now automatically include an ID attribute (`id="ccs-snippet-{id}"`) for easy identification in browser inspector
+    *   GitHub updater settings now configurable via Tools page UI (no more editing PHP files!)
+    *   Enhanced CodeMirror editor with linting, autocomplete (Ctrl+Space), and syntax warnings
+    *   Code editor is now resizable with drag handle
+    *   Added keyboard shortcuts: Ctrl+Space (autocomplete), Ctrl+/ (toggle comments)
+    *   Help text displayed below editor with keyboard shortcut tips
+*   **Improvements:**
+    *   Better editor UX with line wrapping, bracket matching, and active line highlighting
+    *   GitHub token stored securely in database instead of code
+    *   Settings persist across updates
+
 **v0.1.2**
 *   **Critical Bugfix:** Fixed snippets not executing on frontend
     *   Removed overly aggressive output filtering that was stripping CSS/HTML content

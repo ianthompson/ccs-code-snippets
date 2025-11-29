@@ -57,6 +57,13 @@ class CCS_Tools_Page {
         <div class="wrap">
             <h1><?php esc_html_e( 'Code Snippets Tools', 'ccs-snippets' ); ?></h1>
 
+            <!-- GitHub Settings Section -->
+            <div style="margin-top:20px;">
+                <?php CCS_Settings::render_github_settings(); ?>
+            </div>
+
+            <h2 style="margin-top: 40px;"><?php esc_html_e( 'Import & Export', 'ccs-snippets' ); ?></h2>
+
             <div style="display:flex; gap: 20px; margin-top:20px; flex-wrap: wrap;">
                 <!-- Export Section -->
                 <div style="background:#fff; padding:20px; border:1px solid #ccd0d4; flex:1; min-width:300px; max-width:400px;">

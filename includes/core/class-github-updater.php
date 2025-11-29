@@ -73,18 +73,22 @@ class CCS_GitHub_Updater {
      * Initialize updater.
      *
      * @since 0.0.9
+     * @since 0.1.3 Added support for database settings
      * @param string $file  Plugin file path
-     * @param string $user  GitHub username
-     * @param string $repo  GitHub repository name
-     * @param string $token Optional. GitHub access token
+     * @param string $user  GitHub username (fallback)
+     * @param string $repo  GitHub repository name (fallback)
+     * @param string $token Optional. GitHub access token (fallback)
      */
     public function __construct( $file, $user, $repo, $token = '' ) {
         $this->file     = $file;
-        $this->user     = $user;
-        $this->repo     = $repo;
-        $this->token    = $token;
         $this->slug     = 'ccs-code-snippets';
         $this->basename = plugin_basename( $file );
+
+        // Use settings from database, fallback to constants
+        $settings = class_exists( 'CCS_Settings' ) ? CCS_Settings::get_settings() : [];
+        $this->user  = ! empty( $settings['github_user'] ) ? $settings['github_user'] : $user;
+        $this->repo  = ! empty( $settings['github_repo'] ) ? $settings['github_repo'] : $repo;
+        $this->token = ! empty( $settings['github_token'] ) ? $settings['github_token'] : $token;
 
         add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_update' ] );
         add_filter( 'plugins_api', [ $this, 'check_info' ], 10, 3 );

@@ -1,7 +1,94 @@
-# Upgrade Notes: Version 0.1.2
+# Upgrade Notes: Version 0.1.3
 
 ## Overview
-Version 0.1.2 is a critical bugfix release that resolves execution issues introduced in v0.1.1. Version 0.1.1 represented a major refactoring of the Code Snippets plugin with significant improvements to security, code quality, and maintainability, but had overly aggressive security filters that prevented snippets from executing on the frontend.
+Version 0.1.3 adds significant UX improvements to the code editor and settings management. This release includes automatic CSS snippet IDs, enhanced CodeMirror editor features, and a user-friendly GitHub settings interface.
+
+---
+
+## New Features & Improvements (v0.1.3)
+
+### 1. Automatic CSS Snippet IDs
+**Problem:** Users needed to manually add `<style id="custom-id">` tags to identify their CSS in the browser inspector.
+
+**Solution:** CSS snippets now automatically include an ID attribute in the format `id="ccs-snippet-{id}"`.
+
+**Benefits:**
+- No need to wrap CSS in `<style>` tags
+- Easy identification in browser DevTools
+- Cleaner snippet code
+- Consistent naming convention
+
+**Example:**
+```css
+/* Your CSS snippet code (type: CSS) */
+ol { margin-left: 0em; }
+```
+Outputs as:
+```html
+<style id="ccs-snippet-123">
+ol { margin-left: 0em; }
+</style>
+```
+
+### 2. Enhanced Code Editor
+
+**New Features:**
+- **Linting**: Real-time syntax checking with visual warnings/errors in the left gutter
+- **Autocomplete**: Press `Ctrl+Space` (or `Cmd+Space` on Mac) for code suggestions
+- **Syntax Warnings**: Orange/red markers indicate errors as you type
+- **Line Wrapping**: Long lines wrap automatically for better readability
+- **Bracket Matching**: Highlights matching brackets/parentheses
+- **Auto-Close**: Automatically closes brackets, tags, and quotes
+- **Active Line Highlighting**: Current line is highlighted
+- **Resizable Editor**: Drag the bottom edge to resize (minimum 300px height)
+
+**Keyboard Shortcuts:**
+- `Ctrl+Space` / `Cmd+Space` - Trigger autocomplete
+- `Ctrl+/` / `Cmd+/` - Toggle line/block comments
+
+**Visual Improvements:**
+- Help text displayed below editor with tips
+- Better syntax highlighting
+- Cleaner border around editor
+
+### 3. GitHub Settings UI
+
+**Problem:** Users had to edit the main PHP file to configure GitHub auto-update settings.
+
+**Solution:** New settings panel in Tools page allows configuration via web interface.
+
+**Location:** Code Snippets → Tools → GitHub Auto-Update Settings
+
+**Features:**
+- **GitHub Username**: Configure repository owner
+- **Repository Name**: Set repository to check for updates
+- **Access Token**: Optional field for private repositories (password-protected)
+- **Current Configuration Display**: Shows active settings and token status
+- **Automatic Cache Clearing**: Clears update cache when settings change
+- **Database Storage**: Settings persist in database, not code files
+- **Secure Token Storage**: Access tokens stored securely
+
+**Benefits:**
+- No more editing PHP files
+- Settings survive plugin updates
+- Easier for non-technical users
+- Token is password-protected in UI
+- Immediate feedback on configuration
+
+### 4. New Files Added
+
+```
+includes/admin/class-settings.php - Settings manager class
+```
+
+**Updated Files:**
+- `includes/core/class-snippet-executor.php` - Added auto-ID for CSS
+- `includes/admin/class-admin-ui.php` - Enhanced CodeMirror configuration
+- `includes/admin/class-tools-page.php` - Added GitHub settings UI
+- `includes/core/class-github-updater.php` - Reads from database settings
+- `ccs-code-snippets.php` - Loads new settings class
+
+---
 
 ## Critical Bugfix (v0.1.2)
 
@@ -120,29 +207,45 @@ ccs-code-snippets/
 
 ## Migration Guide
 
-### For Users
+### For Users (v0.1.3)
 1. Update the plugin as normal through WordPress admin or by replacing files
 2. All your existing snippets will continue to work
-3. No settings changes needed
-4. No database migration required
+3. **CSS Snippets**: If you have CSS snippets with `<style>` tags, consider:
+   - Option A: Change type from "CSS" to "HTML" (keeps existing code as-is)
+   - Option B: Remove `<style>` tags and keep type as "CSS" (gets auto ID)
+4. **GitHub Settings** (Optional): Visit Tools page to configure GitHub settings in the UI
+5. No database migration required - settings are created automatically
 
 ### For Developers
 If you've customized the plugin, note these changes:
 
-**Old:**
+**v0.1.3 - New Classes:**
+- `CCS_Settings` - Settings management class
+- New method: `CCS_Settings::get_settings()` - Get all plugin settings
+- New method: `CCS_Settings::get( $key, $default )` - Get specific setting
+
+**Accessing Settings:**
 ```php
-new CCS_Code_Snippets_016();
+// Get GitHub settings
+$settings = CCS_Settings::get_settings();
+$github_user = CCS_Settings::get( 'github_user', 'default-user' );
+
+// GitHub updater now reads from database first, falls back to constants
 ```
 
-**New:**
+**v0.1.1 - Architecture Changes:**
 ```php
+// Old
+new CCS_Code_Snippets_016();
+
+// New
 ccs_code_snippets(); // Returns plugin instance
 ccs_code_snippets()->get_component('executor'); // Access specific component
 ```
 
 **Class Names Changed:**
 - `CCS_Code_Snippets_016` → `CCS_Code_Snippets` (main class)
-- New classes: `CCS_Snippet_Executor`, `CCS_Admin_UI`, `CCS_Tools_Page`, `CCS_Post_Types`
+- New classes: `CCS_Snippet_Executor`, `CCS_Admin_UI`, `CCS_Tools_Page`, `CCS_Post_Types`, `CCS_Settings`
 
 ## Security Notes
 
@@ -194,11 +297,12 @@ Before deploying to production, test:
 
 ## Version History Summary
 
-- **v0.1.2** (Current) - Critical bugfix for snippet execution on frontend
+- **v0.1.3** (Current) - UX improvements: auto CSS IDs, enhanced editor, GitHub settings UI
+- **v0.1.2** - Critical bugfix for snippet execution on frontend
 - **v0.1.1** - Major refactor with security improvements (had execution bug)
 - **v0.0.16** - Previous stable release
 
-**Recommended:** Update directly to v0.1.2 (skip v0.1.1 if not already installed)
+**Recommended:** Update directly to v0.1.3 for the best experience
 
 ## Support
 

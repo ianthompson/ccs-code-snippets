@@ -74,14 +74,29 @@ class CCS_Admin_UI {
     public function render_code_editor( $post ) {
         $code = get_post_meta( $post->ID, '_ccs_code', true );
         ?>
-        <textarea
-            id="ccs_code_textarea"
-            name="ccs_code"
-            style="width:100%; min-height: 300px;"
-        ><?php echo esc_textarea( $code ); ?></textarea>
+        <div class="ccs-editor-wrapper" style="position: relative;">
+            <textarea
+                id="ccs_code_textarea"
+                name="ccs_code"
+                style="width:100%; min-height: 300px; resize: vertical;"
+            ><?php echo esc_textarea( $code ); ?></textarea>
+        </div>
         <p class="description">
             <strong>PHP:</strong> Opening <code>&lt;?php</code> tags are added automatically if you skip them.
         </p>
+        <style>
+            /* Make CodeMirror editor resizable */
+            .CodeMirror {
+                min-height: 300px;
+                height: auto;
+                resize: vertical;
+                overflow: auto;
+                border: 1px solid #ddd;
+            }
+            .CodeMirror-scroll {
+                min-height: 300px;
+            }
+        </style>
         <?php
     }
 
@@ -494,22 +509,64 @@ class CCS_Admin_UI {
      * Enqueue WordPress code editor.
      *
      * @since 0.1.1
+     * @since 0.1.3 Enhanced with linting, hints, and custom configuration
      */
     private function enqueue_code_editor() {
         if ( ! function_exists( 'wp_enqueue_code_editor' ) ) {
             return;
         }
 
+        // Get default settings for PHP
         $settings = wp_enqueue_code_editor( [ 'type' => 'application/x-httpd-php' ] );
 
         if ( false === $settings ) {
             return;
         }
 
+        // Enhance CodeMirror settings
+        $settings['codemirror'] = array_merge(
+            $settings['codemirror'],
+            [
+                // Enable line wrapping
+                'lineWrapping'     => true,
+
+                // Show lint warnings/errors
+                'gutters'          => [ 'CodeMirror-lint-markers' ],
+                'lint'             => true,
+
+                // Enable autocomplete
+                'extraKeys'        => [
+                    'Ctrl-Space' => 'autocomplete',
+                    'Cmd-/'      => 'toggleComment',
+                    'Ctrl-/'     => 'toggleComment',
+                ],
+
+                // Better matching
+                'matchBrackets'    => true,
+                'autoCloseBrackets' => true,
+                'matchTags'        => true,
+                'autoCloseTags'    => true,
+
+                // Show active line
+                'styleActiveLine'  => true,
+
+                // Better scrolling
+                'viewportMargin'   => 10,
+            ]
+        );
+
         wp_add_inline_script(
             'code-editor',
             sprintf(
-                'jQuery( function() { wp.codeEditor.initialize( "ccs_code_textarea", %s ); } );',
+                'jQuery( function($) {
+                    var editorSettings = %s;
+                    var editor = wp.codeEditor.initialize( "ccs_code_textarea", editorSettings );
+
+                    if ( editor ) {
+                        // Add help text for keyboard shortcuts
+                        $("<p class=\"description\" style=\"margin-top:10px;\"><strong>Tips:</strong> Press <kbd>Ctrl+Space</kbd> for autocomplete, <kbd>Ctrl+/</kbd> to toggle comments. Editor shows warnings in the left gutter.</p>").insertAfter("#ccs_code_textarea");
+                    }
+                } );',
                 wp_json_encode( $settings )
             )
         );

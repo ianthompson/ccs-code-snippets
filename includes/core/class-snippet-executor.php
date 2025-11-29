@@ -145,8 +145,8 @@ class CCS_Snippet_Executor {
 
         try {
             if ( 'css' === $type ) {
-                // Output CSS directly - already validated at save time
-                echo '<style>' . $code . '</style>';
+                // Output CSS with automatic ID for easier identification
+                echo '<style id="ccs-snippet-' . esc_attr( $id ) . '">' . $code . '</style>';
             } elseif ( 'html' === $type ) {
                 // Output HTML directly - already validated at save time
                 echo $code;
