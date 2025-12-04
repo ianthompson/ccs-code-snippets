@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // -------------------------------------------------------------------------
-// CONFIGURATION
+// CONFIGURATIONS
 // -------------------------------------------------------------------------
 // GitHub auto-updater settings
 // For public repos, leave CCS_ACCESS_TOKEN empty
